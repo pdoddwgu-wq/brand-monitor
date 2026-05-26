@@ -1,0 +1,16 @@
+# Secrets — never commit
+.env
+
+# Logs
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# The database IS committed so Streamlit Cloud has data to display
+# brand_monitor.db  ← intentionally NOT ignored
