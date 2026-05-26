@@ -55,9 +55,8 @@ def load_counts() -> pd.DataFrame:
     return df
 
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# ── Header (title only — date range added below after data loads) ─────────────
 st.title("University Brand Monitor")
-st.caption("WGU vs SNHU · GCU · Purdue Global · University of Phoenix")
 
 try:
     df = load_data()
@@ -72,6 +71,23 @@ if df.empty:
 df["school_label"] = df["school_key"].map(SCHOOL_LABELS)
 df["created_at_dt"] = pd.to_datetime(df["created_at"], errors="coerce", utc=True)
 df["date"] = df["created_at_dt"].dt.date
+
+# ── Date range ────────────────────────────────────────────────────────────────
+dated_only = df["created_at_dt"].dropna()
+if not dated_only.empty:
+    data_start = dated_only.min()
+    data_end   = dated_only.max()
+    date_range_str = f"{data_start.strftime('%B %d, %Y')} — {data_end.strftime('%B %d, %Y')}"
+    dated_count   = len(dated_only)
+    undated_count = df["created_at_dt"].isna().sum()
+else:
+    date_range_str = "No dated mentions"
+    dated_count    = 0
+    undated_count  = len(df)
+
+col_h1, col_h2 = st.columns([3, 2])
+col_h1.caption("WGU vs SNHU · GCU · Purdue Global · University of Phoenix")
+col_h2.caption(f"📅 Data covers: **{date_range_str}**")
 
 # ── Sidebar filters ────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -112,6 +128,13 @@ k2.metric("Positive", f"{(filtered['sentiment'] == 'positive').mean():.0%}")
 k3.metric("Negative", f"{(filtered['sentiment'] == 'negative').mean():.0%}")
 k4.metric("Avg Score", f"{filtered['sentiment_score'].mean():.2f}")
 k5.metric("Citations", f"{int(filtered['is_citation'].sum()):,}")
+
+if not dated_only.empty:
+    st.info(
+        f"📅 **Data timeline:** {date_range_str}  "
+        f"·  {dated_count:,} dated mentions"
+        + (f"  ·  {undated_count:,} undated (no timestamp available)" if undated_count else "")
+    )
 
 st.divider()
 
