@@ -466,8 +466,11 @@ with tab_citations:
             fig9.update_layout(height=300)
             st.plotly_chart(fig9, use_container_width=True)
 
+        cites_display = cites.copy()
+        cites_display.loc[cites_display["school_label"] == "UoPX", "summary"] = ""
+        cites_display.loc[cites_display["school_label"] == "UoPX", "url"] = ""
         st.dataframe(
-            cites[["school_label", "source", "sentiment", "summary", "url"]].rename(
+            cites_display[["school_label", "source", "sentiment", "summary", "url"]].rename(
                 columns={"school_label": "School", "source": "Source",
                          "sentiment": "Sentiment", "summary": "Summary", "url": "Link"}
             ),
