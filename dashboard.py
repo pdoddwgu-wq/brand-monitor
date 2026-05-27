@@ -373,9 +373,6 @@ with tab_programs:
         st.subheader("Program Mentions Detail")
         prog_sel = st.selectbox("Filter by program", ["All"] + sorted(prog_df["program"].unique().tolist()))
         prog_display = prog_df if prog_sel == "All" else prog_df[prog_df["program"] == prog_sel]
-        prog_display = prog_display.copy()
-        prog_display.loc[prog_display["school"] == "UoPX", "summary"] = ""
-        prog_display.loc[prog_display["school"] == "UoPX", "url"] = ""
         st.dataframe(
             prog_display[["school", "program", "sentiment", "score", "summary", "url"]].rename(
                 columns={"school": "School", "program": "Program", "sentiment": "Sentiment",
@@ -470,11 +467,8 @@ with tab_citations:
             fig9.update_layout(height=300)
             st.plotly_chart(fig9, use_container_width=True)
 
-        cites_display = cites.copy()
-        cites_display.loc[cites_display["school_label"] == "UoPX", "summary"] = ""
-        cites_display.loc[cites_display["school_label"] == "UoPX", "url"] = ""
         st.dataframe(
-            cites_display[["school_label", "source", "sentiment", "summary", "url"]].rename(
+            cites[["school_label", "source", "sentiment", "summary", "url"]].rename(
                 columns={"school_label": "School", "source": "Source",
                          "sentiment": "Sentiment", "summary": "Summary", "url": "Link"}
             ),
