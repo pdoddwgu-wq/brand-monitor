@@ -373,14 +373,18 @@ with tab_programs:
         st.subheader("Program Mentions Detail")
         prog_sel = st.selectbox("Filter by program", ["All"] + sorted(prog_df["program"].unique().tolist()))
         prog_display = prog_df if prog_sel == "All" else prog_df[prog_df["program"] == prog_sel]
+        prog_display = prog_display.copy()
+        prog_display.loc[prog_display["school"] == "UoPX", "summary"] = ""
+        prog_display.loc[prog_display["school"] == "UoPX", "url"] = ""
         st.dataframe(
-            prog_display[["school", "program", "sentiment", "score", "source"]].rename(
+            prog_display[["school", "program", "sentiment", "score", "summary", "url"]].rename(
                 columns={"school": "School", "program": "Program", "sentiment": "Sentiment",
-                         "score": "Score", "source": "Source"}
+                         "score": "Score", "summary": "Summary", "url": "Source"}
             ).sort_values("Score"),
             use_container_width=True,
             height=350,
             column_config={
+                "Source": st.column_config.LinkColumn("Source", display_text="View →"),
                 "Score": st.column_config.NumberColumn(format="%.2f"),
             },
         )
