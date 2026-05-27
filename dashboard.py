@@ -374,14 +374,15 @@ with tab_programs:
         prog_sel = st.selectbox("Filter by program", ["All"] + sorted(prog_df["program"].unique().tolist()))
         prog_display = prog_df if prog_sel == "All" else prog_df[prog_df["program"] == prog_sel]
         st.dataframe(
-            prog_display[["school", "program", "sentiment", "score", "summary", "url"]].rename(
+            prog_display[["school", "program", "sentiment", "score", "source"]].rename(
                 columns={"school": "School", "program": "Program", "sentiment": "Sentiment",
-                         "score": "Score", "summary": "Summary", "url": "Link"}
+                         "score": "Score", "source": "Source"}
             ).sort_values("Score"),
             use_container_width=True,
             height=350,
-            column_config={"Link": st.column_config.LinkColumn(),
-                           "Score": st.column_config.NumberColumn(format="%.2f")},
+            column_config={
+                "Score": st.column_config.NumberColumn(format="%.2f"),
+            },
         )
 
 # ── Timeline ──────────────────────────────────────────────────────────────────
