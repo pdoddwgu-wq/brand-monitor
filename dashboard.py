@@ -482,15 +482,13 @@ with tab_citations:
 with tab_mentions:
     st.subheader(f"All Mentions ({len(filtered):,})")
     display = filtered[
-        ["school_label", "source", "sentiment", "sentiment_score", "summary", "url", "created_at"]
+        ["school_label", "source", "sentiment", "sentiment_score", "created_at"]
     ].rename(
         columns={
             "school_label": "School",
-            "source": "Source",
+            "source": "Channel",
             "sentiment": "Sentiment",
             "sentiment_score": "Score",
-            "summary": "Summary",
-            "url": "Link",
             "created_at": "Date",
         }
     ).sort_values("Score")
@@ -500,7 +498,6 @@ with tab_mentions:
         use_container_width=True,
         height=520,
         column_config={
-            "Link": st.column_config.LinkColumn(),
             "Score": st.column_config.NumberColumn(format="%.2f"),
         },
     )
