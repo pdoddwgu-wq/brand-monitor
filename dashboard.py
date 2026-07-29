@@ -400,6 +400,7 @@ with tab_degrees:
                 "sentiment": row["sentiment"],
                 "score": row["sentiment_score"],
                 "source": row["source"],
+                "url": row["url"],
             })
 
     if not deg_rows:
@@ -483,13 +484,16 @@ with tab_degrees:
         deg_sel = st.selectbox("Filter by degree", ["All"] + sorted(deg_df["degree"].unique().tolist()))
         deg_display = deg_df if deg_sel == "All" else deg_df[deg_df["degree"] == deg_sel]
         st.dataframe(
-            deg_display[["school", "degree", "sentiment", "score", "source"]].rename(
+            deg_display[["school", "degree", "sentiment", "score", "source", "url"]].rename(
                 columns={"school": "School", "degree": "Degree", "sentiment": "Sentiment",
-                         "score": "Score", "source": "Channel"}
+                         "score": "Score", "source": "Channel", "url": "Link"}
             ).sort_values("Score"),
             use_container_width=True,
             height=350,
-            column_config={"Score": st.column_config.NumberColumn(format="%.2f")},
+            column_config={
+                "Score": st.column_config.NumberColumn(format="%.2f"),
+                "Link": st.column_config.LinkColumn("Link", display_text="Open"),
+            },
         )
 
 # ── Timeline ──────────────────────────────────────────────────────────────────
