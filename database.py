@@ -71,7 +71,9 @@ def migrate_db():
     existing = [r[1] for r in conn.execute("PRAGMA table_info(sentiment)").fetchall()]
     if "programs" not in existing:
         conn.execute("ALTER TABLE sentiment ADD COLUMN programs TEXT")
-        conn.commit()
+    if "degrees" not in existing:
+        conn.execute("ALTER TABLE sentiment ADD COLUMN degrees TEXT")
+    conn.commit()
     conn.close()
 
 
@@ -80,9 +82,9 @@ def save_sentiment(s: dict):
     conn.execute(
         """
         INSERT OR REPLACE INTO sentiment
-            (mention_id, sentiment, score, themes, programs, is_citation, summary, analyzed_at)
+            (mention_id, sentiment, score, themes, programs, degrees, is_citation, summary, analyzed_at)
         VALUES
-            (:mention_id, :sentiment, :score, :themes, :programs, :is_citation, :summary, :analyzed_at)
+            (:mention_id, :sentiment, :score, :themes, :programs, :degrees, :is_citation, :summary, :analyzed_at)
         """,
         s,
     )

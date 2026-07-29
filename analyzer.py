@@ -148,6 +148,60 @@ PROGRAM_KEYWORDS = {
 }
 
 
+# ── Degree keyword map ────────────────────────────────────────────────────────
+DEGREE_KEYWORDS = {
+    # Technology
+    "B.S. Cybersecurity":           ["bscia", "bs cybersecurity", "b.s. cybersecurity", "bachelor.*cybersecurity", "cybersecurity.*bachelor", "undergrad.*cybersecurity"],
+    "M.S. Cybersecurity":           ["mscia", "ms cybersecurity", "m.s. cybersecurity", "master.*cybersecurity", "cybersecurity.*master"],
+    "B.S. Cloud Computing":         ["bs cloud", "b.s. cloud", "bachelor.*cloud computing", "cloud computing.*bachelor", "cloud degree"],
+    "B.S. Software Development":    ["bs software", "software development degree", "bssd", "bachelor.*software dev", "software dev.*bachelor"],
+    "B.S. Computer Science":        ["bscs", "bs computer science", "b.s. computer science", "bachelor.*computer science", "cs degree", "cs program"],
+    "M.S. Software Engineering":    ["ms software", "msse", "master.*software engineering", "software engineering.*master"],
+    "B.S. Information Technology":  ["bsit", "b\\.s\\. information tech", "bachelor.*information tech", "information tech.*degree", "wgu it degree"],
+    "M.S. IT Management":           ["msitm", "ms it management", "it management.*master", "master.*it management"],
+    "B.S. Network Operations":      ["bsnos", "network operations.*degree", "bs networking", "bachelor.*networking"],
+    "B.S. Data Management":         ["bsdmda", "data management degree", "bachelor.*data analytics", "data analytics.*bachelor"],
+    "M.S. Data Analytics":          ["ms data analytics", "msda", "master.*data analytics", "data analytics.*master"],
+    # Nursing & Health
+    "B.S. Nursing (RN-BSN)":        ["rn to bsn", "rn-bsn", "rn2bsn", "bsn program", "bs nursing", "bachelor.*nursing", "nursing.*bachelor", "bsn degree"],
+    "M.S. Nursing":                 ["msn program", "msn degree", "master.*nursing", "nursing.*master", "ms nursing"],
+    "Nursing Prelicensure":         ["prelicensure", "pre-licensure", "pre licensure", "nclex", "new nurse", "nursing school.*wgu"],
+    "M.S. Health Informatics":      ["health informatics", "mshi", "ms health informatics", "master.*health informatics"],
+    "B.S. Health Information":      ["health information management", "him degree", "bs health information"],
+    "M.S. Healthcare Management":   ["mha", "master.*healthcare management", "healthcare management.*master", "ms healthcare"],
+    # Business
+    "MBA":                          ["mba program", "mba degree", "wgu mba", "online mba", "master of business administration"],
+    "B.S. Business Administration": ["bsba", "bs business administration", "business administration degree", "bachelor.*business admin"],
+    "B.S. Accounting":              ["bs accounting", "accounting degree", "bachelor.*accounting", "accounting.*bachelor"],
+    "M.S. Accounting":              ["ms accounting", "master.*accounting", "macc", "accounting.*master"],
+    "B.S. Marketing":               ["bs marketing", "marketing degree", "bachelor.*marketing", "marketing.*bachelor"],
+    "B.S. Human Resource Management": ["bs hrm", "hrm degree", "bachelor.*human resource", "human resource.*bachelor", "shrm.*wgu"],
+    "M.S. Management & Leadership": ["msml", "ms management", "master.*management.*leadership", "management.*leadership.*master"],
+    "B.S. Supply Chain":            ["bs supply chain", "supply chain degree", "bachelor.*supply chain"],
+    # Education
+    "B.S. Elementary Education":    ["bs elementary", "elementary education degree", "bachelor.*elementary ed"],
+    "B.S. Special Education":       ["bs special ed", "special education degree", "bachelor.*special ed"],
+    "M.S. Teaching":                ["mst degree", "master.*teaching", "teaching.*master", "ms teaching", "wgu teaching"],
+    "M.S. Instructional Design":    ["instructional design degree", "ms instructional", "master.*instructional design"],
+    "Ed.D. / Doctorate":            ["\\bed\\.d\\b", "\\bedd\\b", "doctorate.*education", "doctoral.*wgu", "phd.*wgu"],
+    # Psychology / Criminal Justice
+    "B.S. Psychology":              ["bs psychology", "psychology degree", "bachelor.*psychology", "psychology.*bachelor"],
+    "B.S. Criminal Justice":        ["bs criminal justice", "criminal justice degree", "bachelor.*criminal justice"],
+    "M.S. Criminal Justice":        ["ms criminal justice", "master.*criminal justice"],
+}
+
+
+def _detect_degrees(text: str) -> list:
+    text_lower = text.lower()
+    found = []
+    for degree, patterns in DEGREE_KEYWORDS.items():
+        for pat in patterns:
+            if re.search(pat, text_lower):
+                found.append(degree)
+                break
+    return found
+
+
 def _detect_programs(text: str) -> list:
     text_lower = text.lower()
     found = []
@@ -217,10 +271,36 @@ def _analyze_one(mention: dict) -> dict:
         "score": round(compound, 4),
         "themes": json.dumps(_detect_themes(text)),
         "programs": json.dumps(_detect_programs(text)),
+        "degrees": json.dumps(_detect_degrees(text)),
         "is_citation": 1 if _is_citation(text) else 0,
         "summary": _summarize(text),
         "analyzed_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def backfill_degrees() -> int:
+    """Tag degrees on already-analyzed mentions that don't have degree data yet."""
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT m.id, m.body FROM mentions m
+        INNER JOIN sentiment s ON m.id = s.mention_id
+        WHERE s.degrees IS NULL AND m.body IS NOT NULL AND length(trim(m.body)) > 20
+    """).fetchall()
+    conn.close()
+    if not rows:
+        return 0
+    print(f"  Backfilling degrees for {len(rows)} mentions...")
+    conn = get_conn()
+    for row in rows:
+        degrees = _detect_degrees(row["body"] or "")
+        conn.execute(
+            "UPDATE sentiment SET degrees=? WHERE mention_id=?",
+            (json.dumps(degrees), row["id"])
+        )
+    conn.commit()
+    conn.close()
+    print(f"  ✓ {len(rows)} mentions tagged with degrees")
+    return len(rows)
 
 
 def backfill_programs() -> int:
@@ -255,6 +335,7 @@ def backfill_programs() -> int:
 def run(batch_size: int = 200) -> int:
     migrate_db()
     backfill_programs()
+    backfill_degrees()
 
     pending = total_unanalyzed()
     if pending == 0:

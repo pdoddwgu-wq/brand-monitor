@@ -33,7 +33,7 @@ def load_data() -> pd.DataFrame:
             m.title, m.body, m.score AS upvotes,
             m.rating, m.created_at, m.fetched_at,
             s.sentiment, s.score AS sentiment_score,
-            s.themes, s.programs, s.is_citation, s.summary
+            s.themes, s.programs, s.degrees, s.is_citation, s.summary
         FROM mentions m
         INNER JOIN sentiment s ON m.id = s.mention_id
         """,
@@ -139,8 +139,8 @@ if not dated_only.empty:
 st.divider()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_overview, tab_themes, tab_programs, tab_timeline, tab_citations, tab_mentions = st.tabs(
-    ["Overview", "Themes", "Programs", "Timeline", "Citations", "Mentions"]
+tab_overview, tab_themes, tab_programs, tab_degrees, tab_timeline, tab_citations, tab_mentions = st.tabs(
+    ["Overview", "Themes", "Programs", "Degrees", "Timeline", "Citations", "Mentions"]
 )
 
 # ── Overview ──────────────────────────────────────────────────────────────────
@@ -383,6 +383,113 @@ with tab_programs:
             column_config={
                 "Score": st.column_config.NumberColumn(format="%.2f"),
             },
+        )
+
+# ── Degrees ───────────────────────────────────────────────────────────────────
+with tab_degrees:
+    deg_rows = []
+    for _, row in filtered.iterrows():
+        try:
+            degrees = json.loads(row["degrees"]) if row.get("degrees") else []
+        except (json.JSONDecodeError, TypeError):
+            degrees = []
+        for d in degrees:
+            deg_rows.append({
+                "school": row["school_label"],
+                "degree": d,
+                "sentiment": row["sentiment"],
+                "score": row["sentiment_score"],
+                "source": row["source"],
+            })
+
+    if not deg_rows:
+        st.info("No specific degree mentions detected yet. Run `python3 main.py analyze` to tag degrees.")
+    else:
+        deg_df = pd.DataFrame(deg_rows)
+
+        d1, d2, d3 = st.columns(3)
+        d1.metric("Degree Mentions", f"{len(deg_df):,}")
+        d2.metric("Unique Degrees", deg_df["degree"].nunique())
+        d3.metric("Avg Sentiment", f"{deg_df['score'].mean():.2f}")
+
+        st.divider()
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Most Discussed Degrees")
+            top_degs = (
+                deg_df.groupby("degree").size()
+                .reset_index(name="mentions")
+                .sort_values("mentions", ascending=True)
+                .tail(15)
+            )
+            fig_d1 = px.bar(
+                top_degs, x="mentions", y="degree", orientation="h",
+                labels={"mentions": "Mentions", "degree": ""},
+                color="mentions", color_continuous_scale="Blues",
+            )
+            fig_d1.update_layout(height=460, coloraxis_showscale=False)
+            st.plotly_chart(fig_d1, use_container_width=True)
+
+        with col2:
+            st.subheader("Avg Sentiment by Degree")
+            deg_sent = (
+                deg_df.groupby("degree")["score"].mean()
+                .reset_index()
+                .sort_values("score", ascending=True)
+                .tail(15)
+            )
+            fig_d2 = px.bar(
+                deg_sent, x="score", y="degree", orientation="h",
+                color="score", color_continuous_scale="RdYlGn",
+                range_color=[-1, 1],
+                labels={"score": "Avg Sentiment", "degree": ""},
+            )
+            fig_d2.update_layout(height=460, coloraxis_showscale=False)
+            st.plotly_chart(fig_d2, use_container_width=True)
+
+        st.subheader("Degree Mentions by School")
+        top_deg_names = deg_df["degree"].value_counts().head(12).index.tolist()
+        deg_school = (
+            deg_df[deg_df["degree"].isin(top_deg_names)]
+            .groupby(["degree", "school"]).size()
+            .reset_index(name="mentions")
+        )
+        fig_d3 = px.bar(
+            deg_school, x="degree", y="mentions", color="school",
+            barmode="group",
+            labels={"degree": "", "mentions": "Mentions", "school": "School"},
+        )
+        fig_d3.update_layout(height=380, xaxis_tickangle=-30, legend_title="")
+        st.plotly_chart(fig_d3, use_container_width=True)
+
+        st.subheader("Sentiment Heatmap — Degree × School")
+        heat_data = (
+            deg_df[deg_df["degree"].isin(top_deg_names)]
+            .groupby(["degree", "school"])["score"].mean()
+            .reset_index()
+            .pivot(index="degree", columns="school", values="score")
+            .fillna(0)
+        )
+        fig_d4 = px.imshow(
+            heat_data, color_continuous_scale="RdYlGn",
+            range_color=[-1, 1], aspect="auto",
+            labels={"color": "Avg Sentiment"},
+        )
+        fig_d4.update_layout(height=420)
+        st.plotly_chart(fig_d4, use_container_width=True)
+
+        st.subheader("Degree Mentions Detail")
+        deg_sel = st.selectbox("Filter by degree", ["All"] + sorted(deg_df["degree"].unique().tolist()))
+        deg_display = deg_df if deg_sel == "All" else deg_df[deg_df["degree"] == deg_sel]
+        st.dataframe(
+            deg_display[["school", "degree", "sentiment", "score", "source"]].rename(
+                columns={"school": "School", "degree": "Degree", "sentiment": "Sentiment",
+                         "score": "Score", "source": "Channel"}
+            ).sort_values("Score"),
+            use_container_width=True,
+            height=350,
+            column_config={"Score": st.column_config.NumberColumn(format="%.2f")},
         )
 
 # ── Timeline ──────────────────────────────────────────────────────────────────
