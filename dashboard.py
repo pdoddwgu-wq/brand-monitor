@@ -415,20 +415,23 @@ with tab_degrees:
         st.divider()
         col1, col2 = st.columns(2)
 
+        all_deg_names = deg_df["degree"].unique().tolist()
+        n_degs = len(all_deg_names)
+        bar_height = max(460, n_degs * 28)
+
         with col1:
-            st.subheader("Most Discussed Degrees")
-            top_degs = (
+            st.subheader("Mentions by Degree")
+            all_degs = (
                 deg_df.groupby("degree").size()
                 .reset_index(name="mentions")
                 .sort_values("mentions", ascending=True)
-                .tail(15)
             )
             fig_d1 = px.bar(
-                top_degs, x="mentions", y="degree", orientation="h",
+                all_degs, x="mentions", y="degree", orientation="h",
                 labels={"mentions": "Mentions", "degree": ""},
                 color="mentions", color_continuous_scale="Blues",
             )
-            fig_d1.update_layout(height=460, coloraxis_showscale=False)
+            fig_d1.update_layout(height=bar_height, coloraxis_showscale=False)
             st.plotly_chart(fig_d1, use_container_width=True)
 
         with col2:
@@ -437,7 +440,6 @@ with tab_degrees:
                 deg_df.groupby("degree")["score"].mean()
                 .reset_index()
                 .sort_values("score", ascending=True)
-                .tail(15)
             )
             fig_d2 = px.bar(
                 deg_sent, x="score", y="degree", orientation="h",
@@ -445,14 +447,12 @@ with tab_degrees:
                 range_color=[-1, 1],
                 labels={"score": "Avg Sentiment", "degree": ""},
             )
-            fig_d2.update_layout(height=460, coloraxis_showscale=False)
+            fig_d2.update_layout(height=bar_height, coloraxis_showscale=False)
             st.plotly_chart(fig_d2, use_container_width=True)
 
         st.subheader("Degree Mentions by School")
-        top_deg_names = deg_df["degree"].value_counts().head(12).index.tolist()
         deg_school = (
-            deg_df[deg_df["degree"].isin(top_deg_names)]
-            .groupby(["degree", "school"]).size()
+            deg_df.groupby(["degree", "school"]).size()
             .reset_index(name="mentions")
         )
         fig_d3 = px.bar(
@@ -460,23 +460,23 @@ with tab_degrees:
             barmode="group",
             labels={"degree": "", "mentions": "Mentions", "school": "School"},
         )
-        fig_d3.update_layout(height=380, xaxis_tickangle=-30, legend_title="")
+        fig_d3.update_layout(height=420, xaxis_tickangle=-35, legend_title="")
         st.plotly_chart(fig_d3, use_container_width=True)
 
         st.subheader("Sentiment Heatmap — Degree × School")
         heat_data = (
-            deg_df[deg_df["degree"].isin(top_deg_names)]
-            .groupby(["degree", "school"])["score"].mean()
+            deg_df.groupby(["degree", "school"])["score"].mean()
             .reset_index()
             .pivot(index="degree", columns="school", values="score")
             .fillna(0)
         )
+        heatmap_height = max(420, len(heat_data) * 26)
         fig_d4 = px.imshow(
             heat_data, color_continuous_scale="RdYlGn",
             range_color=[-1, 1], aspect="auto",
             labels={"color": "Avg Sentiment"},
         )
-        fig_d4.update_layout(height=420)
+        fig_d4.update_layout(height=heatmap_height)
         st.plotly_chart(fig_d4, use_container_width=True)
 
         st.subheader("Degree Mentions Detail")
